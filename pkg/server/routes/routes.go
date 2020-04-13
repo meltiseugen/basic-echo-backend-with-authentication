@@ -1,8 +1,10 @@
 package routes
 
 import (
+	"RevelTest/pkg/server/handler"
 	"fmt"
 	"github.com/labstack/echo"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -29,8 +31,11 @@ func GetRoute(route Route, params ...string) string {
 }
 
 func Init(e *echo.Echo) {
-	InitSystem(e)
-	InitIndex(e)
-	InitMessage(e)
-	InitInstrumenting(e)
+	e.Static("/static", "pkg/assets")
+	e.File("/favicon.ico", "pkg/images/favicon.ico")
+
+	e.GET(GetRoute(METRICS), echo.WrapHandler(promhttp.Handler()))
+
+	e.GET(GetRoute(INDEX), handler.Index)
+	e.GET(GetRoute(MESSAGE, V1), handler.UserMessage)
 }

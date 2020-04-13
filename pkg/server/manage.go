@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/labstack/gommon/log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,15 +17,16 @@ import (
 
 func SetUpRoutes(e *echo.Echo) {
 	defer utils.Log("Set up the routes")
-
-
+	routes.Init(e)
 }
 
 func SetUpLogger(e *echo.Echo) {
 	defer utils.Log("Set up the logger")
 
 	e.Logger.SetLevel(log.INFO)
-	e.Use(middleware.Logger())
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: "method=${method}, uri=${uri}, status=${status}\n",
+	}))
 }
 
 func SetDefaultFlags(e *echo.Echo) {
@@ -33,7 +35,30 @@ func SetDefaultFlags(e *echo.Echo) {
 
 }
 
-func SetUpJWTAuth(e * echo.Echo) {
+func SetCORS(e *echo.Echo) {
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
+		Skipper: func(c echo.Context) bool {
+			return true
+		},
+	}))
+}
+
+func SetCSRF(e *echo.Echo) {
+	e.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
+		TokenLength:  32,
+		TokenLookup:  "header:" + echo.HeaderXCSRFToken,
+		ContextKey:   "csrf",
+		CookieName:   "_csrf",
+		CookieMaxAge: 86400,
+		Skipper: func(c echo.Context) bool {
+			return true
+		},
+	}))
+}
+
+func SetUpJWTAuth(e *echo.Echo) {
 	e.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 		Claims:        &auth.JWTClaims{},
 		SigningKey:    []byte("secret"),
@@ -49,6 +74,8 @@ func Start() {
 
 	SetDefaultFlags(e)
 	SetUpLogger(e)
+	SetCORS(e)
+	SetCSRF(e)
 	SetUpJWTAuth(e)
 	SetUpRoutes(e)
 
